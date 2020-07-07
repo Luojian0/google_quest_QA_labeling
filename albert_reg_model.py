@@ -13,7 +13,7 @@ from transformers import AlbertModel, AlbertPreTrainedModel
 from torch.nn import BCEWithLogitsLoss
 
 
-class AlbertForSequenceRegression(AlbertPreTrainedModel):
+class AlbertForSequenceClassification(AlbertPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
         self.num_labels = config.num_labels
@@ -78,10 +78,10 @@ class AlbertForSequenceRegression(AlbertPreTrainedModel):
         pooled_output = self.dropout(pooled_output)
         logits = self.classifier(pooled_output)
 
-        outputs = (logits, ) + outputs[2:]  # add hidden states and attention if they are here
+        # outputs = (logits, ) + outputs[2:]  # add hidden states and attention if they are here
 
-        loss_fct = BCEWithLogitsLoss()
-        loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-        outputs = (loss, ) + outputs
+        # loss_fct = BCEWithLogitsLoss()
+        # loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+        # outputs = (loss, ) + outputs
 
-        return outputs  # (loss), logits, (hidden_states), (attentions)
+        return logits # (loss), logits, (hidden_states), (attentions)

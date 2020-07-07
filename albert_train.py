@@ -8,12 +8,13 @@
 '''
 
 # here put the import lib
-from albert_reg_model import AlbertForSequenceRegression
+from albert_reg_model import AlbertForSequenceClassification
 from transformers import AdamW, AlbertConfig
 from transformers import get_linear_schedule_with_warmup
 from data_preprocess import PreProcess
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from early_stopping import EarlyStopping
+import torch.nn as nn
 
 import time
 import datetime
@@ -22,6 +23,8 @@ import random
 import numpy as np
 from tqdm import tqdm
 from scipy.stats import spearmanr
+
+
 
 
 def dataloader(path):
@@ -57,13 +60,14 @@ def get_model(path, epochs):
     # (Note that this is not the same as the number of training samples).
     total_steps = len(train_dataloader) * epochs
 
+    albertconfig =  AlbertConfig.from_json_file('./models/config.json')
+    albertconfig.num_labels = 30
+
     # Load BertForTokenClassification, the pretrained BERT model with a single, linear classification layer on top.
-    model = AlbertForSequenceRegression.from_pretrained(
+    model = AlbertForSequenceClassification.from_pretrained(
         'albert-base-v2',  # Use the 12-layer BERT model, with an uncased vocab.
-        num_labels=30,  # The number of output labels--2 for binary classification. 
-        output_attentions=False,  # Whether the model returns attentions weights.
-        output_hidden_states=False,  # Whether the model returns all hidden-states.
-    )
+         config = albertconfig
+        )
 
     optimizer = AdamW(
         model.parameters(),
@@ -76,7 +80,9 @@ def get_model(path, epochs):
         num_warmup_steps=0,  # Default value in run_glue.py
         num_training_steps=total_steps)
 
-    return model, optimizer, scheduler
+    criterion = nn.BCEWithLogitsLoss()
+
+    return model, optimizer, scheduler, criterion
 
 
 def spearman(preds, targets):
@@ -109,11 +115,11 @@ def fit(path, epochs=10):
     """
 
     train_dataloader, validation_dataloader = dataloader(path)
-    model, optimizer, scheduler = get_model(path, epochs)
+    model, optimizer, scheduler, criterion = get_model(path, epochs)
 
     early_stopping = EarlyStopping()
     # Tell pytorch to run this model on the GPU.
-    # model.cuda()
+    #  model.cuda()
     model.cpu()
     # device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     device = torch.device("cpu")
@@ -193,10 +199,14 @@ def fit(path, epochs=10):
             # arge given and what flags are set. For our useage here, it returns
             # the loss (because we provided labels) and the "logits"--the model
             # outputs prior to activation.
-            loss, logits = model(b_input_ids,
-                                 token_type_ids=b_token_ids,
-                                 attention_mask=b_input_mask,
-                                 labels=b_labels)
+            logits = model(input_ids = b_input_ids,
+                            token_type_ids=b_token_ids,
+                            attention_mask=b_input_mask,
+                            labels = b_labels)
+
+            # Calculate the loss
+
+            loss = criterion(logits.view(-1, self.num_labels), b_labels.view(-1))
 
             # Accumulate the training loss over all of the batches so that we can
             # calculate the average loss at the end. `loss` is a Tensor containing a
@@ -278,10 +288,13 @@ def fit(path, epochs=10):
                 # https://huggingface.co/transformers/v2.2.0/model_doc/bert.html#transformers.BertForSequenceClassification
                 # Get the "logits" output by the model. The "logits" are the output
                 # values prior to applying an activation function like the softmax.
-                (loss, logits) = model(b_input_ids,
-                                       token_type_ids=b_token_ids,
-                                       attention_mask=b_input_mask,
-                                       labels=b_labels)
+                logits = model(b_input_ids,
+                                token_type_ids=b_token_ids,
+                                attention_mask=b_input_mask,
+                                labels=b_labels)
+
+            # Calculate the loss
+            loss = criterion(logits.view(-1, self.num_labels), b_labels.view(-1))
 
             # Accumulate the validation loss.
             total_eval_loss += loss.item()
@@ -321,4 +334,4 @@ def fit(path, epochs=10):
 
 if __name__ == '__main__':
     path = 'google-quest-challenge/train.csv'
-    fit(path, epochs=4)
+    fit(path, epochs=10)

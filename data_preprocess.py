@@ -27,7 +27,7 @@ class PreProcess:
     def __init__(self, path):
         self.path = path
         self.result = self.extract_all_punct()
-        self.tokenizer = AlbertTokenizer.from_pretrained('models')
+        self.tokenizer = AlbertTokenizer.from_pretrained('albert-base-v2')
 
 
     def load_data(self):
@@ -122,8 +122,8 @@ class PreProcess:
         labels = torch.tensor(labels, dtype=torch.double)
 
         # Save vocabulary
-        # output_dir = "./models/"
-        # tokenizer.save_vocabulary(output_dir)
+        output_dir = "./models/"
+        self.tokenizer.save_vocabulary(output_dir)
 
         return input_ids, token_type_ids, attention_mask, labels
 

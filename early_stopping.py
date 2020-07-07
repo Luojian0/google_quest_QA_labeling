@@ -59,7 +59,7 @@ class EarlyStopping:
     def save_checkpoint(self, epoch_score, model):
         if epoch_score not in [-np.inf, np.inf, -np.nan, np.nan]:
             print('Validation score improved ({} --> {}). Saving model!'.format(self.val_score, epoch_score))
-            output_dir = './model_save/'
+            output_dir = './models/'
 
             model_to_save = model.module if hasattr(model, 'module') else model
             model_to_save.save_pretrained(output_dir)
